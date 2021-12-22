@@ -1,5 +1,7 @@
 import os
 import datetime
+from pprint import pprint
+
 from bs4 import BeautifulSoup
 from loguru import logger
 from time import sleep
@@ -10,6 +12,9 @@ from RPA.Browser.Selenium import Selenium
 from RPA.Excel.Files import Files
 from RPA.Tables import Table
 from RPA.FileSystem import FileSystem
+
+from RPA.PDF import PDF
+from robot.libraries.String import String
 
 from config import agency
 
@@ -89,21 +94,59 @@ def download_business_case_pdf(html: str, url: str) -> List:
         browser_lib.go_to(link)
         browser_lib.wait_until_page_contains_element('link:Download Business Case PDF')
         browser_lib.click_element_if_visible('link:Download Business Case PDF')
-        sleep(5)
+        sleep(7)
         if FileSystem().does_file_not_exist(f'output/{file_name}.pdf'):
-            logger.error(f"File {file_name}.pdf wasn't downloaded. One more trying in 10 seconds.")
-            sleep(10)
+            logger.error(f"File {file_name}.pdf wasn't downloaded. One more trying in 15 seconds.")
+            sleep(15)
+            if FileSystem().does_file_exist(f'output/{file_name}.pdf'):
+                logger.debug(f"File {file_name}.pdf was downloaded.")
         browser_lib.go_back()
 
     return links
 
 
-def check_downloads(links: list) -> None:
-    for link in links:
-        file_name = link.split('/')[-1].rstrip("'")
-        if FileSystem().does_file_not_exist(f'output/{file_name}.pdf'):
-            logger.error(f"File {file_name}.pdf wasn't downloaded.")
-    logger.info(f"All files were downloaded.")
+def remove_the_duplicate_files_from_the_folder() -> None:
+    file_path = os.path.abspath('output/')
+    file_list = os.listdir('output/')
+    for file_name in file_list:
+        for i in range(5):
+            if f" ({i})" not in file_name:
+                continue
+            original_file_name = file_name.replace(f' ({i})', '')
+            if not os.path.exists(os.path.join(file_path, original_file_name)):
+                continue  # do not remove files which have no original
+            os.remove(os.path.join(file_path, file_name))
+        if "tmp" in file_name or 'load' in file_name:
+            os.remove(os.path.join(file_path, file_name))
+
+
+def extract_data_from_pdf() -> List:
+    file_list = os.listdir('output/')[:-1]
+
+    pdf_values = []
+    for file_name in file_list:
+        section = PDF().get_text_from_pdf(source_path=f'output/{file_name}', pages=1)
+        line = String().get_lines_containing_string(section[1], 'Name of this Investment')
+        pdf_value = line.split('Name of this Investment: ')[-1].split("Section B")[0].split(
+            '2. Unique Investment Identifier (UII): ')
+        pdf_values.append(pdf_value)
+
+    return pdf_values
+
+
+def compare_values(pdf_values: list, content: Optional[Table]) -> None:
+    web_values = content.to_list(with_index=False)
+
+    n = 0
+    for pdf_value in pdf_values:
+        for web_value in web_values:
+            msg = f"Unique Investment Identifier (UII): {pdf_value[1]} is equal UII: {web_value[0]}, " \
+                  f"Name of this Investment: {pdf_value[0]} is equal Investment Title: {web_value[2]}"
+            if pdf_value[1] == web_value[0] and pdf_value[0] == web_value[2]:
+                logger.info(msg)
+                n += 1
+                break
+    logger.debug(f"Result: {n} out of {len(pdf_values)} values are equal.")
 
 
 def main():
@@ -118,8 +161,10 @@ def main():
         html = get_agency_individual_investments_table()
         content = scrape_agency_individual_investments_table(html)
         add_excel_worksheet_table('output/excel.xlsx', 'Table', content)
-        links = download_business_case_pdf(html, url)
-        check_downloads(links)
+        download_business_case_pdf(html, url)
+        remove_the_duplicate_files_from_the_folder()
+        pdf_values = extract_data_from_pdf()
+        compare_values(pdf_values, content)
     finally:
         browser_lib.close_all_browsers()
 
