@@ -1,6 +1,5 @@
 import os
 import datetime
-from pprint import pprint
 
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -12,7 +11,6 @@ from RPA.Browser.Selenium import Selenium
 from RPA.Excel.Files import Files
 from RPA.Tables import Table
 from RPA.FileSystem import FileSystem
-
 from RPA.PDF import PDF
 from robot.libraries.String import String
 
@@ -22,7 +20,7 @@ from config import agency
 browser_lib = Selenium()
 
 
-def get_amounts_for_each_agency(url: str) -> List[Tuple]:
+def get_amounts_for_each_agency() -> List[Tuple]:
     browser_lib.click_element_when_visible('partial link:DIVE IN')
     browser_lib.wait_until_element_is_visible('id:agency-tiles-widget')
 
@@ -34,7 +32,7 @@ def get_amounts_for_each_agency(url: str) -> List[Tuple]:
     return content
 
 
-def write_excel_worksheet_agencies(path: str, worksheet: str, content: Optional[list[Tuple]]) -> None:
+def write_excel_worksheet_agencies(path: str, worksheet: str, content: Optional[List[Tuple]]) -> None:
     lib = Files()
     lib.create_workbook(path)
     try:
@@ -155,7 +153,7 @@ def main():
     browser_lib.open_available_browser(url)
 
     try:
-        content = get_amounts_for_each_agency(url)
+        content = get_amounts_for_each_agency()
         write_excel_worksheet_agencies('output/excel.xlsx', 'Agencies', content)
         select_one_of_the_agencies(agency, url)
         html = get_agency_individual_investments_table()
@@ -171,3 +169,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+

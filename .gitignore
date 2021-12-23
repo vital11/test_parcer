@@ -1,2 +1,4 @@
 .idea/
-/playwright-log.txt
+/env/
+__pycache__/
+/testrun/
