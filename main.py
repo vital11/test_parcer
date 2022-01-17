@@ -1,12 +1,10 @@
 import os
 import datetime
 import re
+from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
 from loguru import logger
-
-from typing import List, Optional, Dict
-
 from RPA.Browser.Selenium import Selenium
 from RPA.Excel.Files import Files
 from RPA.Tables import Table
@@ -14,7 +12,6 @@ from RPA.FileSystem import FileSystem
 from RPA.PDF import PDF
 
 from config import agency
-
 
 browser_lib = Selenium()
 file_system_lib = FileSystem()
@@ -84,10 +81,6 @@ def add_excel_worksheet_table(path: str, worksheet: str, content: Optional[Table
 
 
 def download_business_case_pdf(html: str, url: str) -> None:
-    # files = file_system_lib.list_files_in_directory('output/')
-    # paths = [f'output/{f.name}' for f in files if 'excel' not in f'{f.name}']
-    # file_system_lib.remove_files(*paths, missing_ok=True)
-
     soup = BeautifulSoup(html, 'lxml')
     links = [url + link.get('href').lstrip('/') for link in soup.find_all('a')]
     for link in links:
@@ -103,13 +96,13 @@ def download_business_case_pdf(html: str, url: str) -> None:
 
 def remove_the_duplicate_files_from_the_folder() -> None:
     file_path = os.path.abspath('output/')
-    file_list = os.listdir('output/')
+    file_list = os.listdir(file_path)
     for file_name in file_list:
         if 'excel' in file_name:
             continue
         if "pdf" not in file_name:
             os.remove(os.path.join(file_path, file_name))
-        pattern = r'\ \(\d{1,9}\)'
+        pattern = r' \([0-9]+\).pdf'
         if re.search(pattern, file_name) is None:
             continue
         original_file_name = re.sub(pattern=pattern, repl='', string=file_name)
@@ -133,17 +126,15 @@ def extract_data_from_pdf() -> List:
 
 def compare_values(pdf_values: list, content: Optional[Table]) -> None:
     p = len(pdf_values)
-    k = 0
     n = len(content.to_list(with_index=False))
-    for i in range(p):
-        for j in range(n):
-            pdf_value = pdf_values[i]
-            web_value = list(content.get_row(j).values())
-            if set(pdf_value).issubset(web_value):
-                msg = f'Unique Investment Identifier (UII): {pdf_value[0]} is equal UII: {web_value[0]}, ' \
-                      f'Name of this Investment: "{pdf_value[1]}" is equal Investment Title: "{web_value[2]}"'
-                logger.info(msg)
-                k += 1
+    k = 0
+    for i in range(n):
+        web_value = content.get_row(index=i, columns=[0, 2], as_list=True)
+        if web_value in pdf_values:
+            msg = f'Unique Investment Identifier (UII): {web_value[0]} is equal UII, ' \
+                  f'Name of this Investment: "{web_value[1]}" is equal Investment Title'
+            logger.info(msg)
+            k += 1
     logger.info(f"{k} out of {p} values are equal.")
 
 
