@@ -20,10 +20,9 @@ file_system_lib = FileSystem()
 def get_amounts_for_each_agency() -> List[Dict]:
     browser_lib.click_element_when_visible('partial link:DIVE IN')
     browser_lib.wait_until_element_is_visible('id:agency-tiles-widget')
-    agency_names = browser_lib.get_webelements('css:div#agency-tiles-widget span.h4.w200')
-    agency_amounts = browser_lib.get_webelements('css:div#agency-tiles-widget span.h1.w900')
-    agencies = list(zip(agency_names, agency_amounts))
-    content = [{'Agency name': agency[0].text, 'Agency amount': agency[1].text} for agency in agencies]
+    names = browser_lib.get_webelements('css:div#agency-tiles-widget span.h4.w200')
+    amounts = browser_lib.get_webelements('css:div#agency-tiles-widget span.h1.w900')
+    content = [{'Agency name': name.text, 'Agency amount': amount.text} for name, amount in zip(names, amounts)]
     return content
 
 
