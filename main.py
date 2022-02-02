@@ -42,18 +42,24 @@ def select_one_of_the_agencies(agency_name: str, url: str) -> None:
     browser_lib.go_to(url + link)
 
 
-def get_agency_individual_investments_table() -> Table:
+def get_agency_individual_investments_table():
     delta = datetime.timedelta(seconds=20)
-    browser_lib.wait_until_page_contains_element('id:investments-table-widget', delta)
+    browser_lib.wait_until_page_contains_element('id:investments-table-object', delta)
     browser_lib.select_from_list_by_value('name:investments-table-object_length', '-1')
     browser_lib.wait_until_page_does_not_contain_element(
         'css:#investments-table-object_paginate > span > a:nth-child(2)', delta)
-    head = browser_lib.get_webelements('css:table#investments-table-object > thead > tr > th > div')
-    headers = [element.get_attribute('innerHTML') for element in head]
-    body = browser_lib.get_webelements('css:table#investments-table-object > tbody > tr > td')
-    cells = [element.text for element in body]
-    n = len(headers)
-    rows = [cells[i:i+n] for i in range(0, len(cells), n)]
+    table = browser_lib.get_webelement('id:investments-table-object')
+    thead = table.find_element_by_tag_name('thead').find_elements_by_tag_name('th')
+    headers = []
+    for th in thead:
+        header = th.find_element_by_tag_name('div').get_attribute('innerHTML')
+        headers.append(header)
+    tbody = table.find_element_by_tag_name('tbody').find_elements_by_tag_name('tr')
+    rows = []
+    for tr in tbody:
+        tds = tr.find_elements_by_tag_name('td')
+        row = [td.text for td in tds]
+        rows.append(row)
     content = [dict(zip(headers, row)) for row in rows]
     return Table(content)
 
@@ -80,7 +86,7 @@ def download_business_case_pdf() -> None:
         browser_lib.go_to(file.url)
         browser_lib.wait_until_page_contains_element('link:Download Business Case PDF')
         browser_lib.click_element_if_visible('link:Download Business Case PDF')
-        file_system_lib.wait_until_created(path, timeout=30.0)
+        file_system_lib.wait_until_created(path, timeout=60.0)
         logger.debug(f"File {file.name} was downloaded.")
         browser_lib.go_back()
 
